@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import mongoose from "mongoose";
+import cors from "cors";
 
 dotenv.config();
 
@@ -10,6 +11,22 @@ const PORT = process.env.PORT || 5000;
 if (!process.env.MONGO_URI) {
   throw new Error("MONGO_URI not found in environment variables");
 }
+
+/* ================= CORS FIX FOR LIVE + LOCAL ================= */
+
+app.set("trust proxy", 1);
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://www.varaii.com"
+    ],
+    credentials: true
+  })
+);
+
+/* ============================================================ */
 
 const startServer = async () => {
   try {
