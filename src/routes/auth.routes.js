@@ -1,28 +1,25 @@
 import express from "express";
+
 import {
-  login,
-  register,
-  customerAuthController,
-} from "../controllers/auth.controller.js";
-import { validate } from "../middlewares/validate.middleware.js";
+  sendOtpController,
+  verifyOtpController,
+  meController
+} from "../controllers/otp.controller.js";
+
 import {
-  loginSchema,
-  registerSchema,
-  customerLoginSchema,
-  customerRegisterSchema,
-} from "../validators/auth.validator.js";
+  getCustomerProfile,
+  updateCustomerProfile
+} from "../controllers/customer.controller.js";
 
 const router = express.Router();
 
-/* ADMIN */
-router.post("/register", validate(registerSchema), register);
-router.post("/login", validate(loginSchema), login);
+/* ========== AUTH ========== */
+router.post("/customer/send-otp", sendOtpController);
+router.post("/customer/verify-otp", verifyOtpController);
+router.get("/customer/me", meController);
 
-/* CUSTOMER SMART AUTH (LOGIN + AUTO REGISTER) */
-router.post(
-  "/customer/auth",
-  validate(customerLoginSchema), 
-  customerAuthController
-);
+/* ========== CUSTOMER PROFILE ========== */
+router.get("/customer/profile", getCustomerProfile);
+router.put("/customer/profile", updateCustomerProfile);
 
 export default router;

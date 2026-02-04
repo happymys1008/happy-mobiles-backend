@@ -2,13 +2,18 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
 
+/* ================= HELPERS ================= */
+
 const createHttpError = (statusCode, message) => {
   const err = new Error(message);
   err.statusCode = statusCode;
   return err;
 };
 
-/* ================= ADMIN ================= */
+const generateOtp = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+/* ================= ADMIN (UNCHANGED) ================= */
 
 export const registerAdmin = async ({ name, mobile, password }) => {
   const exists = await User.findOne({ mobile });
@@ -48,37 +53,54 @@ export const loginUser = async ({ mobile, password }) => {
   };
 };
 
-/* ================= CUSTOMER (OTP BASED) ================= */
+/* ================= CUSTOMER OTP SYSTEM ================= */
 
-export const registerCustomer = async ({ name, mobile }) => {
-  const exists = await User.findOne({ mobile });
-  if (exists) return exists; // already hai to create mat karo
+export const sendCustomerOtp = async mobile => {
+  let user = await User.findOne({ mobile });
 
-  return await User.create({
-    name: name || `Customer ${mobile.slice(-4)}`,
-    mobile,
-    password: "OTP_LOGIN", // dummy value (not used)
-    role: "customer",
-  });
+  if (!user) {
+    user = await User.create({
+      name: `Customer ${mobile.slice(-4)}`,
+      mobile,
+      role: "customer",
+    });
+  }
+
+  const otp = generateOtp();
+
+  user.otp = await bcrypt.hash(otp, 10);
+  user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+  await user.save();
+
+  console.log("OTP (dev only):", otp); // later SMS gateway here
+
+  return true;
 };
 
-export const loginCustomer = async ({ mobile }) => {
+export const verifyCustomerOtp = async (mobile, otp) => {
   const user = await User.findOne({ mobile, role: "customer" });
 
-  if (!user) throw createHttpError(401, "User not found");
+  if (!user || !user.otp) {
+    throw createHttpError(400, "OTP not requested");
+  }
 
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+  if (user.otpExpires < Date.now()) {
+    throw createHttpError(400, "OTP expired");
+  }
 
-  return {
-    token,
-    user: {
-      name: user.name,
-      mobile: user.mobile,
-      role: user.role,
-    },
-  };
+  const valid = await bcrypt.compare(otp, user.otp);
+  if (!valid) throw createHttpError(400, "Invalid OTP");
+
+  user.otp = undefined;
+  user.otpExpires = undefined;
+  await user.save();
+
+  return user;
+};
+
+export const getCustomerById = async id => {
+  const user = await User.findById(id).select("-otp -otpExpires -password");
+  if (!user) throw createHttpError(404, "User not found");
+  return user;
 };

@@ -1,11 +1,13 @@
 import {
-  loginCustomer,
-  loginUser,
-  registerAdmin,
-  registerCustomer,
+  sendCustomerOtp,
+  verifyCustomerOtp,
+  getCustomerById
 } from "../services/auth.service.js";
+import jwt from "jsonwebtoken";
 
-/* ================= ADMIN ================= */
+/* ================= ADMIN (UNCHANGED) ================= */
+
+import { loginUser, registerAdmin } from "../services/auth.service.js";
 
 export const register = async (req, res, next) => {
   try {
@@ -27,30 +29,46 @@ export const login = async (req, res, next) => {
   }
 };
 
-/* ================= CUSTOMER SMART AUTH ================= */
+/* ================= CUSTOMER OTP AUTH ================= */
 
-export const customerAuthController = async (req, res, next) => {
+export const sendOtpController = async (req, res, next) => {
   try {
-    const { name, mobile, password } = req.body;
+    const { mobile } = req.body;
+    await sendCustomerOtp(mobile);
+    res.json({ message: "OTP sent" });
+  } catch (err) {
+    next(err);
+  }
+};
 
-    try {
-      // 🔁 Try login first (existing user)
-      const payload = await loginCustomer({ mobile, password });
-      return res.json({
-        ...payload,
-        isNewUser: false,
-      });
-    } catch (loginErr) {
-      // 👇 If not found → auto register
-      await registerCustomer({ name, mobile, password });
+export const verifyOtpController = async (req, res, next) => {
+  try {
+    const { mobile, otp } = req.body;
 
-      const payload = await loginCustomer({ mobile, password });
+    const user = await verifyCustomerOtp(mobile, otp);
 
-      return res.json({
-        ...payload,
-        isNewUser: true,
-      });
-    }
+    const token = jwt.sign(
+      { id: user._id, role: "customer" },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const meController = async (req, res, next) => {
+  try {
+    const user = await getCustomerById(req.user.id);
+    res.json(user);
   } catch (err) {
     next(err);
   }

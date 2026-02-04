@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import mongoose from "mongoose";
-import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 
@@ -16,28 +15,24 @@ const startServer = async () => {
   try {
     await connectDB();
 
- app.use("/api", userRoutes);
-
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
 
     const shutdown = async (signal) => {
-      console.log(`Received ${signal}, shutting down...`);
+      console.log(`🛑 ${signal} received. Shutting down...`);
       try {
         await mongoose.connection.close(false);
       } catch (err) {
-        console.error("❌ Error closing MongoDB connection:", err.message);
+        console.error("❌ Error closing MongoDB:", err.message);
       }
-      server.close(() => {
-        process.exit(0);
-      });
+      server.close(() => process.exit(0));
     };
 
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("SIGTERM", () => shutdown("SIGTERM"));
   } catch (err) {
-    console.error("❌ MongoDB Error:", err.message);
+    console.error("❌ Startup Error:", err.message);
     process.exit(1);
   }
 };

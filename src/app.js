@@ -10,6 +10,7 @@ import productRoutes from "./routes/product.routes.js"; // ✅ ADD THIS
 import inventoryRoutes from "./routes/inventory.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
+import userRoutes from "./routes/user.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -23,7 +24,12 @@ const authLimiter = rateLimit({
 
 app.use(helmet());
 app.use(morgan("combined"));
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    credentials: true,
+  })
+);
 app.use(
   express.json({
     verify: (req, res, buf) => {
@@ -33,6 +39,7 @@ app.use(
 );
 
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/users", userRoutes); 
 app.use("/api/test", testRoutes);
 app.use("/api/products", productRoutes); // ✅ ADD THIS
 app.use("/api/inventory", inventoryRoutes);
