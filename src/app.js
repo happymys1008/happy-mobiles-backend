@@ -12,6 +12,10 @@ import orderRoutes from "./routes/order.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
+import customerRoutes from "./routes/customer.routes.js";
+import brandRoutes from "./routes/brand.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -38,10 +42,15 @@ app.use(
   })
 );
 
+app.use(cookieParser());   // ⭐ THIS WAS MISSING (ROOT CAUSE)
+
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes); 
+app.use("/api/customers", customerRoutes); // ✅ NEW
 app.use("/api/test", testRoutes);
 app.use("/api/products", productRoutes); // ✅ ADD THIS
+app.use("/api/brands", brandRoutes);
+app.use("/api", categoryRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/webhooks", webhookRoutes);

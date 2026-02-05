@@ -3,31 +3,51 @@ import mongoose from "mongoose";
 const inventorySchema = new mongoose.Schema(
   {
     productId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
       required: true,
-      index: true,
+      index: true
     },
+
     variantId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Variant",
       required: true,
-      index: true,
+      index: true
     },
+
+    trackingType: {
+      type: String,
+      enum: ["QTY", "SERIAL", "IMEI"],
+      required: true
+    },
+
     qty: {
       type: Number,
-      required: true,
-      min: 0,
       default: 0,
+      min: 0
     },
+
+    imeis: {
+      type: [String],
+      default: []
+    },
+
+    serials: {
+      type: [String],
+      default: []
+    },
+
     lowStockThreshold: {
       type: Number,
-      min: 0,
-      default: 5,
+      default: 5
     },
+
     lowStock: {
       type: Boolean,
       default: false,
-      index: true,
-    },
+      index: true
+    }
   },
   { timestamps: true }
 );

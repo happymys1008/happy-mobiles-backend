@@ -42,8 +42,20 @@ export const verifyOtpController = async (req, res) => {
     { expiresIn: "7d" }
   );
 
+res.cookie("token", token, {
+  httpOnly: true,
+
+  secure: process.env.NODE_ENV === "production",
+
+  sameSite:
+    process.env.NODE_ENV === "production"
+      ? "none"
+      : "lax",
+
+  maxAge: 7 * 24 * 60 * 60 * 1000
+});
+
   res.json({
-    token,
     user: {
       name: user.name,
       mobile: user.mobile,
@@ -53,5 +65,25 @@ export const verifyOtpController = async (req, res) => {
 };
 
 export const meController = async (req, res) => {
-  res.status(401).json({ message: "Not implemented yet" });
+  try {
+    const token = req.cookies?.token;
+
+    if (!token) return res.status(401).json({ message: "Not logged in" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    if (!user) return res.status(401).json({ message: "User not found" });
+
+    res.json({
+      user: {
+        name: user.name,
+        mobile: user.mobile,
+        role: user.role
+      }
+    });
+  } catch {
+    res.status(401).json({ message: "Invalid token" });
+  }
 };

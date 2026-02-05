@@ -3,6 +3,7 @@ import app from "./app.js";
 import connectDB from "./config/db.js";
 import mongoose from "mongoose";
 import cors from "cors";
+import cookieParser from "cookie-parser";   // ✅ ADD THIS
 
 dotenv.config();
 
@@ -25,6 +26,9 @@ app.use(
     credentials: true
   })
 );
+
+
+app.use(cookieParser());   // ✅ ADD THIS
 
 /* ============================================================ */
 
