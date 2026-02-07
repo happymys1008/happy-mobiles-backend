@@ -16,6 +16,10 @@ import customerRoutes from "./routes/customer.routes.js";
 import brandRoutes from "./routes/brand.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import cookieParser from "cookie-parser";
+import productAttributeRoutes from "./routes/productAttribute.routes.js";
+import purchaseRoutes from "./routes/purchase.routes.js";
+import shopRoutes from "./routes/shop.routes.js";
+import variantRoutes from "./routes/variant.routes.js";
 
 const app = express();
 
@@ -52,8 +56,13 @@ app.use("/api/products", productRoutes); // ✅ ADD THIS
 app.use("/api/brands", brandRoutes);
 app.use("/api", categoryRoutes);
 app.use("/api/inventory", inventoryRoutes);
+app.use("/api/purchases", purchaseRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/webhooks", webhookRoutes);
+app.use("/api/product-attributes", productAttributeRoutes);
+app.use("/api/shop", shopRoutes);
+app.use("/api/variants", variantRoutes);
+
 
 app.get("/", (req, res) => {
   res.send("API running...");

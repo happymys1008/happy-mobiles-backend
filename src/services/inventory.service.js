@@ -1,4 +1,5 @@
 import Inventory from "../models/Inventory.model.js";
+import Product from "../models/Product.model.js";
 import mongoose from "mongoose";
 
 const createHttpError = (statusCode, message) => {
@@ -18,6 +19,9 @@ const applyLowStockFlag = async (doc) => {
   return doc;
 };
 
+/* ===============================
+   LIST
+================================ */
 export const listInventory = async () => {
   return Inventory.find();
 };
@@ -26,9 +30,12 @@ export const listLowStockInventory = async () => {
   return Inventory.find({ lowStock: true });
 };
 
+/* ===============================
+   RESERVE INVENTORY (SALE)
+================================ */
 export const reserveInventory = async ({ productId, variantId, qty }) => {
-  if (!productId || !variantId) {
-    throw createHttpError(400, "productId and variantId are required");
+  if (!productId) {
+    throw createHttpError(400, "productId is required");
   }
 
   const requestedQty = Number(qty);
@@ -36,8 +43,23 @@ export const reserveInventory = async ({ productId, variantId, qty }) => {
     throw createHttpError(400, "qty must be at least 1");
   }
 
+  const product = await Product.findById(productId).lean();
+  if (!product) {
+    throw createHttpError(404, "Invalid product");
+  }
+
+  if (product.allowVariants && !variantId) {
+    throw createHttpError(400, "variantId is required for this product");
+  }
+
+  const query = {
+    productId,
+    variantId: product.allowVariants ? variantId : null,
+    qty: { $gte: requestedQty }
+  };
+
   const updated = await Inventory.findOneAndUpdate(
-    { productId, variantId, qty: { $gte: requestedQty } },
+    query,
     { $inc: { qty: -requestedQty } },
     { new: true }
   );
@@ -49,9 +71,12 @@ export const reserveInventory = async ({ productId, variantId, qty }) => {
   return applyLowStockFlag(updated);
 };
 
+/* ===============================
+   ADJUST INVENTORY (PURCHASE / MANUAL)
+================================ */
 export const adjustInventory = async ({ productId, variantId, qty }) => {
-  if (!productId || !variantId) {
-    throw createHttpError(400, "productId and variantId are required");
+  if (!productId) {
+    throw createHttpError(400, "productId is required");
   }
 
   const requestedQty = Number(qty);
@@ -59,9 +84,23 @@ export const adjustInventory = async ({ productId, variantId, qty }) => {
     throw createHttpError(400, "qty must be non-zero");
   }
 
+  const product = await Product.findById(productId).lean();
+  if (!product) {
+    throw createHttpError(404, "Invalid product");
+  }
+
+  if (product.allowVariants && !variantId) {
+    throw createHttpError(400, "variantId is required for this product");
+  }
+
+  const query = {
+    productId,
+    variantId: product.allowVariants ? variantId : null
+  };
+
   if (requestedQty > 0) {
     const updated = await Inventory.findOneAndUpdate(
-      { productId, variantId },
+      query,
       { $inc: { qty: requestedQty } },
       { new: true, upsert: true }
     );
@@ -70,7 +109,7 @@ export const adjustInventory = async ({ productId, variantId, qty }) => {
 
   const decrement = Math.abs(requestedQty);
   const updated = await Inventory.findOneAndUpdate(
-    { productId, variantId, qty: { $gte: decrement } },
+    { ...query, qty: { $gte: decrement } },
     { $inc: { qty: -decrement } },
     { new: true }
   );
@@ -82,21 +121,26 @@ export const adjustInventory = async ({ productId, variantId, qty }) => {
   return applyLowStockFlag(updated);
 };
 
+/* ===============================
+   NORMALIZE ITEMS
+================================ */
 const normalizeItems = (items) =>
   items
     .map((item) => ({
       productId: item.productId,
-      variantId: item.variantId,
-      qty: Number(item.qty),
+      variantId: item.variantId ?? null,
+      qty: Number(item.qty)
     }))
     .filter(
       (item) =>
         item.productId &&
-        item.variantId &&
         Number.isFinite(item.qty) &&
         item.qty > 0
     );
 
+/* ===============================
+   COMMIT INVENTORY (ORDER FINALIZE)
+================================ */
 export const commitInventory = async ({ items }) => {
   const normalized = normalizeItems(items || []);
   if (normalized.length === 0) {
@@ -108,12 +152,23 @@ export const commitInventory = async ({ items }) => {
     let updatedDocs = [];
     await session.withTransaction(async () => {
       for (const item of normalized) {
+        const product = await Product.findById(item.productId).lean();
+        if (!product) {
+          throw createHttpError(404, "Invalid product");
+        }
+
+        if (product.allowVariants && !item.variantId) {
+          throw createHttpError(400, "variantId is required for this product");
+        }
+
+        const query = {
+          productId: item.productId,
+          variantId: product.allowVariants ? item.variantId : null,
+          qty: { $gte: item.qty }
+        };
+
         const updated = await Inventory.findOneAndUpdate(
-          {
-            productId: item.productId,
-            variantId: item.variantId,
-            qty: { $gte: item.qty },
-          },
+          query,
           { $inc: { qty: -item.qty } },
           { new: true, session }
         );
@@ -125,6 +180,7 @@ export const commitInventory = async ({ items }) => {
         updatedDocs.push(await applyLowStockFlag(updated));
       }
     });
+
     return updatedDocs;
   } catch (err) {
     const msg = String(err?.message || "");
@@ -140,15 +196,23 @@ export const commitInventory = async ({ items }) => {
     session.endSession();
   }
 
+  // 🔁 fallback (no transaction support)
   const decremented = [];
   try {
     for (const item of normalized) {
+      const product = await Product.findById(item.productId).lean();
+      if (!product) {
+        throw createHttpError(404, "Invalid product");
+      }
+
+      const query = {
+        productId: item.productId,
+        variantId: product.allowVariants ? item.variantId : null,
+        qty: { $gte: item.qty }
+      };
+
       const updated = await Inventory.findOneAndUpdate(
-        {
-          productId: item.productId,
-          variantId: item.variantId,
-          qty: { $gte: item.qty },
-        },
+        query,
         { $inc: { qty: -item.qty } },
         { new: true }
       );
@@ -165,7 +229,10 @@ export const commitInventory = async ({ items }) => {
     await Promise.all(
       decremented.map(({ item }) =>
         Inventory.findOneAndUpdate(
-          { productId: item.productId, variantId: item.variantId },
+          {
+            productId: item.productId,
+            variantId: item.variantId ?? null
+          },
           { $inc: { qty: item.qty } }
         )
       )

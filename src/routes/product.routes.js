@@ -2,25 +2,41 @@ import express from "express";
 
 import {
   getProducts,
+  createProduct,
+  updateProduct,
   getVariantsByProduct,
   createVariant,
-  deleteVariant
+  deleteVariant,
+  updateVariantPrice
 } from "../controllers/product.controller.js";
 
 const router = express.Router();
 
 /* ================= PRODUCTS ================= */
+
+// Get all products
 router.get("/", getProducts);
+
+// Create product
+router.post("/", createProduct);
+
+
+// Update product (EDIT PAGE)
+router.put("/:productId", updateProduct);
+
 
 /* ================= VARIANTS ================= */
 
-// get all variants of a product
+// Get all variants of a product
 router.get("/:productId/variants", getVariantsByProduct);
 
-// create variant for product
+// Create variant for a product
 router.post("/:productId/variants", createVariant);
 
-// delete variant
+// Update variant price (🔥 SINGLE SOURCE OF TRUTH)
+router.put("/variants/:variantId/price", updateVariantPrice);
+
+// Delete variant
 router.delete("/variants/:variantId", deleteVariant);
 
 export default router;

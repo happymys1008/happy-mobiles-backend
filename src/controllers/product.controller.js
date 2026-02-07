@@ -1,18 +1,14 @@
-import { listProducts } from "../services/product.service.js";
 import Variant from "../models/Variant.model.js";
 import Inventory from "../models/Inventory.model.js";
-
-const parsePositiveInt = (value) => {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-};
+import Product from "../models/Product.model.js";
+import { listProducts, createProductWithDefaultVariant } from "../services/product.service.js";
 
 /* ================= PRODUCTS ================= */
 
 export const getProducts = async (req, res, next) => {
   try {
-    const page = parsePositiveInt(req.query.page);
-    const limit = parsePositiveInt(req.query.limit);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 100;
 
     const products = await listProducts({ page, limit });
 
@@ -22,22 +18,50 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
+
+/* ================= CREATE PRODUCT ================= */
+
+export const createProduct = async (req, res, next) => {
+  try {
+    const payload = { ...req.body };
+
+    // 🔒 PRICE RULE
+    if (payload.allowVariants) {
+      delete payload.mrp;
+      delete payload.sellingPrice;
+    } else {
+      if (payload.mrp == null || payload.sellingPrice == null) {
+        return res.status(400).json({
+          message: "MRP and Selling Price required for non-variant product"
+        });
+      }
+
+      if (Number(payload.sellingPrice) > Number(payload.mrp)) {
+        return res.status(400).json({
+          message: "Selling price cannot be greater than MRP"
+        });
+      }
+    }
+
+    const product = await createProductWithDefaultVariant(payload);
+    res.status(201).json(product);
+  } catch (err) {
+    next(err);
+  }
+};
+
 /* ================= VARIANTS ================= */
 
-// GET variants of product
 export const getVariantsByProduct = async (req, res, next) => {
   try {
     const { productId } = req.params;
-
     const variants = await Variant.find({ productId });
-
     res.json(variants);
   } catch (err) {
     next(err);
   }
 };
 
-// CREATE variant
 export const createVariant = async (req, res, next) => {
   try {
     const { productId } = req.params;
@@ -51,11 +75,12 @@ export const createVariant = async (req, res, next) => {
       defaultImage
     });
 
-    // 🔥 Auto create inventory (just like admin did)
+    const product = await Product.findById(productId);
+
     await Inventory.create({
       productId,
       variantId: variant._id,
-      trackingType: req.body.trackingType,
+      trackingType: product.trackingType,
       qty: 0,
       imeis: [],
       serials: []
@@ -67,21 +92,33 @@ export const createVariant = async (req, res, next) => {
   }
 };
 
-// DELETE variant
+export const updateVariantPrice = async (req, res, next) => {
+  try {
+    const { variantId } = req.params;
+    const { mrp, sellingPrice } = req.body;
+
+    const variant = await Variant.findByIdAndUpdate(
+      variantId,
+      {
+        mrp: Number(mrp),
+        sellingPrice: Number(sellingPrice)
+      },
+      { new: true }
+    );
+
+    if (!variant) {
+      return res.status(404).json({ message: "Variant not found" });
+    }
+
+    res.json(variant);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const deleteVariant = async (req, res, next) => {
   try {
     const { variantId } = req.params;
-
-    const used = await Inventory.findOne({
-      variantId,
-      $or: [{ qty: { $gt: 0 } }, { imeis: { $not: { $size: 0 } } }]
-    });
-
-    if (used) {
-      return res.status(400).json({
-        message: "Inventory exists for this variant"
-      });
-    }
 
     await Variant.findByIdAndDelete(variantId);
     await Inventory.deleteOne({ variantId });
@@ -91,3 +128,44 @@ export const deleteVariant = async (req, res, next) => {
     next(err);
   }
 };
+
+
+/* ================= UPDATE PRODUCT ================= */
+export const updateProduct = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const payload = { ...req.body };
+
+    // 🔒 PRICE RULE (NON-VARIANT ONLY)
+    if (!payload.allowVariants) {
+      if (
+        payload.mrp != null &&
+        payload.sellingPrice != null &&
+        Number(payload.sellingPrice) > Number(payload.mrp)
+      ) {
+        return res.status(400).json({
+          message: "Selling price cannot be greater than MRP"
+        });
+      }
+    } else {
+      // variant product → price yahan save hi nahi hoga
+      delete payload.mrp;
+      delete payload.sellingPrice;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      payload,
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(updatedProduct);
+  } catch (err) {
+    next(err);
+  }
+};
+
