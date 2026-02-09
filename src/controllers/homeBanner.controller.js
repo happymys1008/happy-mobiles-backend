@@ -1,5 +1,6 @@
 import HomeBanner from "../models/HomeBanner.js";
 import cloudinary from "../config/cloudinary.js";
+import { clearCache } from "../utils/appCache.js";
 
 export const getHomeBanners = async (req, res) => {
   const banners = await HomeBanner.find({ active: true }).sort({ order: 1 });
@@ -35,6 +36,9 @@ export const createHomeBanner = async (req, res) => {
       order: Number(req.body.order) || 1,
       active: true,
     });
+
+    /* 🧹 CLEAR BOOTSTRAP CACHE (STEP-2 PART-C) */
+    clearCache("app:bootstrap");
 
     res.status(201).json(banner);
   } catch (err) {

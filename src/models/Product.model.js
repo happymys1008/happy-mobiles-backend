@@ -115,5 +115,31 @@ productSchema.pre("findOneAndUpdate", function (next) {
   next();
 });
 
+/* =====================================================
+   🚀 STEP-6: MONGODB INDEXES (ULTRA FAST)
+===================================================== */
+
+// 🔍 Text search (product name)
+productSchema.index({ name: "text" });
+
+
+
+// 🗂 Category hierarchy filters
+productSchema.index({ categoryId: 1 });
+productSchema.index({ subCategoryId: 1 });
+productSchema.index({ childCategoryId: 1 });
+
+// 🏷 Brand filter
+productSchema.index({ brandId: 1 });
+
+// 💰 Price sorting / range
+productSchema.index({ sellingPrice: 1 });
+
+// ⚡ Active products filter
+productSchema.index({ isActive: 1 });
+
+// ⏱ Latest products
+productSchema.index({ createdAt: -1 });
+
 const Product = mongoose.model("Product", productSchema);
 export default Product;

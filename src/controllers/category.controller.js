@@ -1,48 +1,93 @@
 import Category from "../models/Category.model.js";
 import SubCategory from "../models/SubCategory.model.js";
 import ChildCategory from "../models/ChildCategory.model.js";
+import { clearCache } from "../utils/appCache.js";
 
-/* CATEGORY */
+/* ================= CATEGORY ================= */
 
 export const getCategories = async (req, res, next) => {
   try {
-    res.json(await Category.find().sort({ name: 1 }));
-  } catch (e) { next(e); }
+    // ✅ Treat all categories as ACTIVE by default
+    const list = await Category.find().sort({ order: 1 });
+    res.json(list);
+  } catch (e) {
+    next(e);
+  }
 };
 
 export const createCategory = async (req, res, next) => {
   try {
-    const item = await Category.create(req.body);
+    const payload = {
+      ...req.body,
+      // ✅ FORCE ACTIVE = true (Admin UI ke hisaab se)
+      active: true
+    };
+
+    const item = await Category.create(payload);
+
+    /* 🧹 CLEAR BOOTSTRAP CACHE */
+    clearCache("app:bootstrap");
+
     res.status(201).json(item);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
-/* SUB */
+/* ================= SUB CATEGORY ================= */
 
 export const getSubCategories = async (req, res, next) => {
   try {
-    res.json(await SubCategory.find());
-  } catch (e) { next(e); }
+    const list = await SubCategory.find().sort({ order: 1 });
+    res.json(list);
+  } catch (e) {
+    next(e);
+  }
 };
 
 export const createSubCategory = async (req, res, next) => {
   try {
-    const item = await SubCategory.create(req.body);
+    const payload = {
+      ...req.body,
+      active: true
+    };
+
+    const item = await SubCategory.create(payload);
+
+    /* 🧹 CLEAR BOOTSTRAP CACHE */
+    clearCache("app:bootstrap");
+
     res.status(201).json(item);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
-/* CHILD */
+/* ================= CHILD CATEGORY ================= */
 
 export const getChildCategories = async (req, res, next) => {
   try {
-    res.json(await ChildCategory.find());
-  } catch (e) { next(e); }
+    const list = await ChildCategory.find().sort({ order: 1 });
+    res.json(list);
+  } catch (e) {
+    next(e);
+  }
 };
 
 export const createChildCategory = async (req, res, next) => {
   try {
-    const item = await ChildCategory.create(req.body);
+    const payload = {
+      ...req.body,
+      active: true
+    };
+
+    const item = await ChildCategory.create(payload);
+
+    /* 🧹 CLEAR BOOTSTRAP CACHE */
+    clearCache("app:bootstrap");
+
     res.status(201).json(item);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };

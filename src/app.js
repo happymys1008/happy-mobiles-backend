@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-console.log("CLOUDINARY:", process.env.CLOUDINARY_CLOUD_NAME); // 👈 YAHAN
+console.log("CLOUDINARY:", process.env.CLOUDINARY_CLOUD_NAME);
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -9,6 +10,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
+/* ================= ROUTES ================= */
 import authRoutes from "./routes/auth.routes.js";
 import testRoutes from "./routes/test.routes.js";
 import productRoutes from "./routes/product.routes.js";
@@ -26,13 +28,16 @@ import homeSectionRoutes from "./routes/homeSection.routes.js";
 import homeBannerRoutes from "./routes/homeBanner.routes.js";
 import subCategoryRoutes from "./routes/subCategory.routes.js";
 import childCategoryRoutes from "./routes/childCategory.routes.js";
-import categoryRoutes from "./routes/category.routes.js"; // ⬅️ keep but move down
+import categoryRoutes from "./routes/category.routes.js";
 
+/* ✅ STEP-1 NEW (SAFE) */
+import appRoutes from "./routes/app.routes.js";
 
 import errorHandler from "./middlewares/error.middleware.js";
 
 const app = express();
 
+/* ================= RATE LIMIT ================= */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
@@ -40,6 +45,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/* ================= MIDDLEWARE ================= */
 app.use(helmet());
 app.use(morgan("combined"));
 app.use(
@@ -61,6 +67,9 @@ app.use("/api/home-banners", homeBannerRoutes);
 app.use("/api/sub-categories", subCategoryRoutes);
 app.use("/api/child-categories", childCategoryRoutes);
 
+// ✅ APP BOOTSTRAP (STEP-1 SINGLE SOURCE)
+app.use("/api/app", appRoutes);
+
 // ✅ NORMAL ROUTES
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
@@ -78,6 +87,7 @@ app.use("/api/variants", variantRoutes);
 // ❌ GENERIC ROUTES ALWAYS LAST
 app.use("/api", categoryRoutes);
 
+/* ================= HEALTH ================= */
 app.get("/", (req, res) => {
   res.send("API running...");
 });
@@ -86,6 +96,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+/* ================= ERROR ================= */
 app.use(errorHandler);
 
 export default app;

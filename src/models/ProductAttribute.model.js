@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const ProductAttributeSchema = new mongoose.Schema(
+const productAttributeSchema = new mongoose.Schema(
   {
     key: {
       type: String,
@@ -9,14 +9,21 @@ const ProductAttributeSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: true // RAM, STORAGE
+      required: true // RAM, STORAGE, COLOR
     },
     values: {
       type: [String],
       default: []
+    },
+    order: {
+      type: Number,
+      default: 0
     }
   },
   { timestamps: true }
 );
 
-export default mongoose.model("ProductAttribute", ProductAttributeSchema);
+export default mongoose.model(
+  "ProductAttribute",
+  productAttributeSchema
+);

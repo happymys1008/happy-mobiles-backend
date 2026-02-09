@@ -1,6 +1,7 @@
 import Brand from "../models/Brand.model.js";
+import { clearCache } from "../utils/appCache.js";
 
-/* GET all brands */
+/* ================= GET ALL BRANDS ================= */
 export const getBrands = async (req, res, next) => {
   try {
     const brands = await Brand.find().sort({ name: 1 });
@@ -10,18 +11,24 @@ export const getBrands = async (req, res, next) => {
   }
 };
 
-/* CREATE brand */
+/* ================= CREATE BRAND ================= */
 export const createBrand = async (req, res, next) => {
   try {
     const { name } = req.body;
 
-    if (!name) return res.status(400).json({ message: "Name required" });
+    if (!name) {
+      return res.status(400).json({ message: "Name required" });
+    }
 
     const exists = await Brand.findOne({ name });
-    if (exists)
+    if (exists) {
       return res.status(400).json({ message: "Brand already exists" });
+    }
 
     const brand = await Brand.create({ name });
+
+    /* 🧹 CLEAR BOOTSTRAP CACHE */
+    clearCache("app:bootstrap");
 
     res.status(201).json(brand);
   } catch (err) {
