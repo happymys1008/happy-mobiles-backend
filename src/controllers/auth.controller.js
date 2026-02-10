@@ -22,12 +22,24 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { mobile, password } = req.body;
+
     const payload = await loginUser({ mobile, password });
-    res.json(payload);
+    // payload = { user, token }
+
+    res.cookie("token", payload.token, {
+      httpOnly: true,
+      secure: true,          // https only
+      sameSite: "none",      // cross-domain
+      domain: ".varaii.com", // admin + customer
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json(payload.user);
   } catch (err) {
     next(err);
   }
 };
+
 
 /* ================= CUSTOMER OTP AUTH ================= */
 
