@@ -1,8 +1,12 @@
 import express from "express";
-import { updateVariant } from "../controllers/variant.controller.js";
+import {
+  getVariantsByProduct,
+  updateVariant
+} from "../controllers/variant.controller.js";
 
 const router = express.Router();
 
+router.get("/product/:productId", getVariantsByProduct);
 router.put("/:id", updateVariant);
 
 export default router;

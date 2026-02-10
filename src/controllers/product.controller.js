@@ -25,6 +25,17 @@ export const createProduct = async (req, res, next) => {
   try {
     const payload = { ...req.body };
 
+    // ✅ VARIANT FLAG NORMALIZATION
+    if (typeof payload.allowVariants !== "boolean") {
+      payload.allowVariants = Boolean(payload.enableVariants);
+    }
+
+    // ✅ PRICE FIELD NORMALIZATION (IMPORTANT FIX)
+    if (payload.price != null && payload.sellingPrice == null) {
+      payload.sellingPrice = payload.price;
+      delete payload.price;
+    }
+
     // 🔒 PRICE RULE
     if (payload.allowVariants) {
       delete payload.mrp;

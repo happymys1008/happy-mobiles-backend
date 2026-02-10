@@ -29,11 +29,14 @@ import homeBannerRoutes from "./routes/homeBanner.routes.js";
 import subCategoryRoutes from "./routes/subCategory.routes.js";
 import childCategoryRoutes from "./routes/childCategory.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
+import supplierRoutes from "./routes/supplier.routes.js";
+
 
 /* ✅ STEP-1 NEW (SAFE) */
 import appRoutes from "./routes/app.routes.js";
 
 import errorHandler from "./middlewares/error.middleware.js";
+
 
 const app = express();
 
@@ -83,6 +86,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/product-attributes", productAttributeRoutes);
 app.use("/api/variants", variantRoutes);
+app.use("/api/suppliers", supplierRoutes);
 
 // ❌ GENERIC ROUTES ALWAYS LAST
 app.use("/api", categoryRoutes);
