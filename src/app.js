@@ -30,6 +30,8 @@ import subCategoryRoutes from "./routes/subCategory.routes.js";
 import childCategoryRoutes from "./routes/childCategory.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import supplierRoutes from "./routes/supplier.routes.js";
+import seoRoutes from "./routes/seo.routes.js";   // ✅ ADD THIS
+
 
 
 /* ✅ STEP-1 NEW (SAFE) */
@@ -107,8 +109,15 @@ app.use("/api/product-attributes", productAttributeRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/suppliers", supplierRoutes);
 
+
+// ✅ SEO ROUTES (Sitemap + Robots)
+app.use("/", seoRoutes);
+
+
 // ❌ GENERIC ROUTES ALWAYS LAST
 app.use("/api", categoryRoutes);
+
+
 
 /* ================= HEALTH ================= */
 app.get("/", (req, res) => {
