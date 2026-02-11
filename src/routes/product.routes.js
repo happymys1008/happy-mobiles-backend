@@ -1,3 +1,4 @@
+import multer from "multer";
 import express from "express";
 
 import {
@@ -7,13 +8,23 @@ import {
   getVariantsByProduct,
   createVariant,
   deleteVariant,
-  updateVariantPrice
+  updateVariantPrice,
+  uploadProductImage
 } from "../controllers/product.controller.js";
 
 const router = express.Router();
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+
 /* ================= PRODUCTS ================= */
 
+
+// 🔥 Upload product image
+router.post("/image/upload", upload.single("image"), uploadProductImage);
 // Get all products
 router.get("/", getProducts);
 

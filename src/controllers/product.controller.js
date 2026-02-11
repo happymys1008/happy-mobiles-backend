@@ -180,3 +180,36 @@ export const updateProduct = async (req, res, next) => {
   }
 };
 
+
+import cloudinary from "../config/cloudinary.js";
+
+/* ================= UPLOAD PRODUCT IMAGE ================= */
+export const uploadProductImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Image missing" });
+    }
+
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          { folder: "products" },
+          (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          }
+        )
+        .end(req.file.buffer);
+    });
+
+    res.status(201).json({
+      imageUrl: result.secure_url,
+      cloudinaryPublicId: result.public_id
+    });
+  } catch (err) {
+    console.error("UPLOAD ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+

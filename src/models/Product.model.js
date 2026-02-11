@@ -50,7 +50,13 @@ const productSchema = new mongoose.Schema(
       default: null
     },
 
-    images: [{ type: String }],
+   images: [
+  {
+    imageUrl: { type: String, required: true },
+    cloudinaryPublicId: { type: String, required: true }
+  }
+],
+
 
     isActive: { type: Boolean, default: true }
   },
@@ -86,9 +92,20 @@ productSchema.pre("save", function (next) {
 });
 
 // UPDATE
+// UPDATE
 productSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
   if (!update) return next();
+
+  // 🔥 Only run price validation if related fields are being updated
+  const isPriceUpdate =
+    update.mrp !== undefined ||
+    update.sellingPrice !== undefined ||
+    update.allowVariants !== undefined;
+
+  if (!isPriceUpdate) {
+    return next();
+  }
 
   // Variant ON → price auto remove
   if (update.allowVariants === true) {
@@ -114,6 +131,7 @@ productSchema.pre("findOneAndUpdate", function (next) {
   this.setUpdate(update);
   next();
 });
+
 
 /* =====================================================
    🚀 STEP-6: MONGODB INDEXES (ULTRA FAST)
