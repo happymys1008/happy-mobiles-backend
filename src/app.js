@@ -82,6 +82,10 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
+
+// ✅ SEO ROUTES (Sitemap + Robots)
+app.use("/", seoRoutes);
+
 /* ================= FIXED ROUTE ORDER ================= */
 
 // ✅ MOST SPECIFIC FIRST
@@ -110,8 +114,7 @@ app.use("/api/variants", variantRoutes);
 app.use("/api/suppliers", supplierRoutes);
 
 
-// ✅ SEO ROUTES (Sitemap + Robots)
-app.use("/", seoRoutes);
+
 
 
 // ❌ GENERIC ROUTES ALWAYS LAST
