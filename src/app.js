@@ -54,29 +54,15 @@ const authLimiter = rateLimit({
 /* ================= MIDDLEWARE ================= */
 app.use(helmet());
 app.use(morgan("combined"));
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://varaii.com",
-  "https://www.varaii.com",
-  "https://admin.varaii.com"
-];
+
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // postman / server calls
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    origin: true,        // 🔥 Allow dynamic origin
+    credentials: true
   })
 );
+
 
 
 app.use(express.json({ limit: "10mb" }));
