@@ -31,6 +31,7 @@ import childCategoryRoutes from "./routes/childCategory.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import supplierRoutes from "./routes/supplier.routes.js";
 import seoRoutes from "./routes/seo.routes.js";   // ✅ ADD THIS
+import reviewRoutes from "./routes/review.routes.js";   // ✅ ADD THIS
 
 
 
@@ -112,6 +113,7 @@ app.use("/api/webhooks", webhookRoutes);
 app.use("/api/product-attributes", productAttributeRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/suppliers", supplierRoutes);
+app.use("/api/reviews", reviewRoutes);   // ✅ ADD THIS
 
 
 
