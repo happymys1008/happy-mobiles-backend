@@ -32,6 +32,7 @@ import categoryRoutes from "./routes/category.routes.js";
 import supplierRoutes from "./routes/supplier.routes.js";
 import seoRoutes from "./routes/seo.routes.js";   // ✅ ADD THIS
 import reviewRoutes from "./routes/review.routes.js";   // ✅ ADD THIS
+import imagekitRoutes from "./routes/imagekit.routes.js";   // ✅ ADD THIS
 
 
 
@@ -100,6 +101,9 @@ app.use("/api/product-attributes", productAttributeRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/reviews", reviewRoutes);   // ✅ ADD THIS
+
+
+app.use("/api/imagekit", imagekitRoutes);   // ✅ IMAGEKIT ROUTE
 
 
 

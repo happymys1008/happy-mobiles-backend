@@ -1,5 +1,5 @@
 import HomeBanner from "../models/HomeBanner.js";
-import cloudinary from "../config/cloudinary.js";
+import imagekit from "../config/imagekit.js";
 import { clearCache } from "../utils/appCache.js";
 
 /* ================= GET ACTIVE BANNERS ================= */
@@ -15,27 +15,17 @@ export const createHomeBanner = async (req, res) => {
       return res.status(400).json({ message: "Image missing" });
     }
 
-    /* 🔥 BUFFER → CLOUDINARY */
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          { folder: "home-banners" },
-          (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          }
-        )
-        .end(req.file.buffer);
+    /* 🔥 UPLOAD TO IMAGEKIT */
+    const result = await imagekit.upload({
+      file: req.file.buffer,
+      fileName: req.file.originalname,
+      folder: "home-banners",
     });
 
     const banner = await HomeBanner.create({
       title: req.body.title || "",
-      imageUrl: result.secure_url,
-      cloudinaryPublicId: result.public_id, // ✅ VERY IMPORTANT
-      blurImageUrl: result.secure_url.replace(
-        "/upload/",
-        "/upload/e_blur:1000,q_10/"
-      ),
+      imageUrl: result.url,
+      imagekitFileId: result.fileId,   // 🔥 Important for delete
       order: Number(req.body.order) || 1,
       active: true,
     });
@@ -43,6 +33,7 @@ export const createHomeBanner = async (req, res) => {
     clearCache("app:bootstrap");
 
     res.status(201).json(banner);
+
   } catch (err) {
     console.error("❌ Banner upload error:", err);
     res.status(500).json({ message: err.message });
@@ -63,6 +54,7 @@ export const toggleHomeBanner = async (req, res) => {
     clearCache("app:bootstrap");
 
     res.json({ success: true, active: banner.active });
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -76,9 +68,9 @@ export const deleteHomeBanner = async (req, res) => {
       return res.status(404).json({ message: "Banner not found" });
     }
 
-    /* 🗑️ DELETE FROM CLOUDINARY */
-    if (banner.cloudinaryPublicId) {
-      await cloudinary.uploader.destroy(banner.cloudinaryPublicId);
+    /* 🗑️ DELETE FROM IMAGEKIT */
+    if (banner.imagekitFileId) {
+      await imagekit.deleteFile(banner.imagekitFileId);
     }
 
     await banner.deleteOne();
@@ -86,6 +78,7 @@ export const deleteHomeBanner = async (req, res) => {
     clearCache("app:bootstrap");
 
     res.json({ success: true });
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

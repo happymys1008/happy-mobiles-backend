@@ -2,20 +2,20 @@ import mongoose from "mongoose";
 
 const homeBannerSchema = new mongoose.Schema(
   {
-    title: { type: String },
+    title: { 
+      type: String 
+    },
 
     imageUrl: {
       type: String,
       required: true
     },
 
-    // ✅ REQUIRED FOR CLOUDINARY DELETE
-    cloudinaryPublicId: {
+    // 🔥 REQUIRED FOR IMAGEKIT DELETE
+    imagekitFileId: {
       type: String,
       required: true
     },
-
-    blurImageUrl: { type: String },
 
     order: {
       type: Number,
