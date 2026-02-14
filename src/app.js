@@ -35,6 +35,8 @@ import reviewRoutes from "./routes/review.routes.js";   // ✅ ADD THIS
 import imagekitRoutes from "./routes/imagekit.routes.js";   // ✅ ADD THIS
 import profileSchemaRoutes from "./routes/profileSchema.routes.js";
 import addressRoutes from "./routes/address.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+
 
 
 
@@ -92,6 +94,7 @@ app.use("/api/app", appRoutes);
 
 // ✅ NORMAL ROUTES
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/test", testRoutes);

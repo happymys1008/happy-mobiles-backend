@@ -1,17 +1,25 @@
 import express from "express";
-import auth from "../middlewares/auth.middleware.js";
-import role from "../middlewares/role.middleware.js"; // ✅ FIXED
+import bcrypt from "bcryptjs";
+import User from "../models/User.model.js";
 
 const router = express.Router();
 
-/* =========================================================
-   ADMIN TEST ROUTE
-========================================================= */
-router.get("/admin", auth, role("admin"), (req, res) => {
-  res.json({
-    message: "🔥 Admin route working",
-    user: req.user,
-  });
+router.get("/create-admin", async (req, res) => {
+  try {
+    const hashed = await bcrypt.hash("Happy@9982649982", 10);
+
+    const admin = await User.create({
+      name: "Narpat",
+      mobile: "8880999566",
+      password: hashed,
+      role: "admin",
+      isActive: true,
+    });
+
+    res.json(admin);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 export default router;

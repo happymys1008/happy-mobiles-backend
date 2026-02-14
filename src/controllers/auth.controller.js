@@ -67,7 +67,8 @@ export const verifyOtpController = async (req, res, next) => {
 
 export const meController = async (req, res, next) => {
   try {
-    const user = await getCustomerById(req.user.id);
+    const user = await getCustomerById(req.user._id);
+
     res.json(user);
   } catch (err) {
     next(err);
