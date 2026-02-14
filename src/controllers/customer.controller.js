@@ -39,11 +39,20 @@ export const updateCustomerProfile = async (req, res) => {
       return res.status(400).json({ message: "Mobile required" });
     }
 
-    const user = await User.findOneAndUpdate(
-      { mobile },
-      { $set: profile },
-      { new: true }
-    );
+const user = await User.findOneAndUpdate(
+  { mobile },
+  {
+    $set: {
+      name: profile.name,
+      email: profile.email,
+      secondaryPhone: profile.secondaryPhone,
+      dob: profile.dob,
+      anniversary: profile.anniversary
+    }
+  },
+  { new: true }
+);
+
 
     if (!user) {
       return res.status(404).json({ message: "Customer not found" });

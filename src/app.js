@@ -33,6 +33,10 @@ import supplierRoutes from "./routes/supplier.routes.js";
 import seoRoutes from "./routes/seo.routes.js";   // ✅ ADD THIS
 import reviewRoutes from "./routes/review.routes.js";   // ✅ ADD THIS
 import imagekitRoutes from "./routes/imagekit.routes.js";   // ✅ ADD THIS
+import profileSchemaRoutes from "./routes/profileSchema.routes.js";
+import addressRoutes from "./routes/address.routes.js";
+
+
 
 
 
@@ -104,6 +108,8 @@ app.use("/api/reviews", reviewRoutes);   // ✅ ADD THIS
 
 
 app.use("/api/imagekit", imagekitRoutes);   // ✅ IMAGEKIT ROUTE
+app.use("/api/profile-schema", profileSchemaRoutes);
+app.use("/api/addresses", addressRoutes);
 
 
 

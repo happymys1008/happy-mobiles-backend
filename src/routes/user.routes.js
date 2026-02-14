@@ -32,3 +32,23 @@ router.get("/admin/customers", async (req, res) => {
 });
 
 export default router;
+
+/* ================= ADMIN — GET SINGLE CUSTOMER ================= */
+
+router.get("/admin/customers/:id", async (req, res) => {
+  try {
+    const customer = await User.findById(req.params.id);
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found"
+      });
+    }
+
+    res.json(customer);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message
+    });
+  }
+});

@@ -13,15 +13,64 @@ const userSchema = new mongoose.Schema(
 
     password: String, // only for admin
 
-    role: {
-      type: String,
-      enum: ["admin", "customer"],
-      default: "customer"
-    },
+role: {
+  type: String,
+  enum: ["admin", "customer"],
+  default: "customer"
+},
 
-    // 🔐 OTP AUTH FIELDS
-    otp: String,
-    otpExpires: Date
+// ✅ CUSTOMER STATUS (Single Source of Truth)
+isActive: {
+  type: Boolean,
+  default: true
+},
+
+/* ===== CUSTOMER PROFILE FIELDS ===== */
+email: {
+  type: String,
+  default: ""
+},
+
+secondaryPhone: {
+  type: String,
+  default: ""
+},
+
+dob: {
+  type: String,
+  default: ""
+},
+
+anniversary: {
+  type: String,
+  default: ""
+},
+
+
+/* ===== CUSTOMER ADDRESSES ===== */
+addresses: [
+  {
+    id: String,
+    name: String,
+    phone: String,
+    line1: String,
+    line2: String,
+    pincode: String,
+    city: String,
+    state: String,
+    isDefault: {
+      type: Boolean,
+      default: false
+    }
+  }
+],
+
+
+
+// 🔐 OTP AUTH FIELDS
+otp: String,
+otpExpires: Date
+
   },
   { timestamps: true }
 );
