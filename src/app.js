@@ -36,6 +36,7 @@ import imagekitRoutes from "./routes/imagekit.routes.js";   // ✅ ADD THIS
 import profileSchemaRoutes from "./routes/profileSchema.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import cartRoutes from "./routes/cart.routes.js";
 
 
 
@@ -103,6 +104,7 @@ app.use("/api/brands", brandRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/product-attributes", productAttributeRoutes);
 app.use("/api/variants", variantRoutes);
