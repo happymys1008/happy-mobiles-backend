@@ -15,23 +15,27 @@ export const listProducts = async ({ page, limit } = {}) => {
   const safePage = page || 1;
   const skip = (safePage - 1) * safeLimit;
 
-  // 1️⃣ PRODUCTS
+  /* ================= TOTAL COUNT ================= */
+  const total = await Product.countDocuments({ isActive: true });
+
+  /* ================= PRODUCTS ================= */
   const products = await Product.find({ isActive: true })
+    .sort({ createdAt: -1 }) // 🔥 NEWEST FIRST
     .skip(skip)
     .limit(safeLimit)
     .lean();
 
-  // 2️⃣ VARIANT PRODUCT IDS
+  /* ================= VARIANT IDS ================= */
   const productIds = products
     .filter(p => p.allowVariants)
     .map(p => p._id);
 
-  // 3️⃣ VARIANTS
+  /* ================= VARIANTS ================= */
   const variants = productIds.length
     ? await Variant.find({ productId: { $in: productIds } }).lean()
     : [];
 
-  // 4️⃣ GROUP VARIANTS BY PRODUCT
+  /* ================= GROUP VARIANTS ================= */
   const variantMap = {};
   for (const v of variants) {
     const key = String(v.productId);
@@ -39,12 +43,24 @@ export const listProducts = async ({ page, limit } = {}) => {
     variantMap[key].push(v);
   }
 
-  // 5️⃣ ATTACH VARIANTS TO PRODUCTS
-  return products.map(p => ({
+  /* ================= ATTACH VARIANTS ================= */
+  const enrichedProducts = products.map(p => ({
     ...p,
     variants: variantMap[String(p._id)] || []
   }));
+
+  /* ================= RETURN PAGINATION OBJECT ================= */
+  const totalPages = Math.ceil(total / safeLimit);
+
+  return {
+    data: enrichedProducts,
+    page: safePage,
+    limit: safeLimit,
+    total,
+    totalPages
+  };
 };
+
 
 
 /* ================= CREATE PRODUCT ================= */
