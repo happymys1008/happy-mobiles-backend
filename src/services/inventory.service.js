@@ -74,14 +74,17 @@ export const reserveInventory = async ({ productId, variantId, qty }) => {
 /* ===============================
    ADJUST INVENTORY (PURCHASE / MANUAL)
 ================================ */
-export const adjustInventory = async ({ productId, variantId, qty }) => {
+/* ===============================
+   ADJUST INVENTORY (PURCHASE / MANUAL)
+================================ */
+export const adjustInventory = async ({
+  productId,
+  variantId,
+  qty,
+  imeis = []
+}) => {
   if (!productId) {
     throw createHttpError(400, "productId is required");
-  }
-
-  const requestedQty = Number(qty);
-  if (!Number.isFinite(requestedQty) || requestedQty === 0) {
-    throw createHttpError(400, "qty must be non-zero");
   }
 
   const product = await Product.findById(productId).lean();
@@ -98,28 +101,69 @@ export const adjustInventory = async ({ productId, variantId, qty }) => {
     variantId: product.allowVariants ? variantId : null
   };
 
-  if (requestedQty > 0) {
-    const updated = await Inventory.findOneAndUpdate(
-      query,
-      { $inc: { qty: requestedQty } },
-      { new: true, upsert: true }
-    );
-    return applyLowStockFlag(updated);
+  let inventory = await Inventory.findOne(query);
+
+  if (!inventory) {
+    inventory = await Inventory.create({
+      productId,
+      variantId: product.allowVariants ? variantId : null,
+      trackingType: product.trackingType,
+      qty: 0,
+      imeis: [],
+      serials: []
+    });
   }
 
-  const decrement = Math.abs(requestedQty);
-  const updated = await Inventory.findOneAndUpdate(
-    { ...query, qty: { $gte: decrement } },
-    { $inc: { qty: -decrement } },
-    { new: true }
-  );
+  /* ================= IMEI / SERIAL TRACKING ================= */
+/* ================= IMEI TRACKING ================= */
+if (product.trackingType === "IMEI") {
 
-  if (!updated) {
+  if (!Array.isArray(imeis) || imeis.length === 0) {
+    throw createHttpError(400, "IMEI numbers required");
+  }
+
+  inventory.imeis = [...inventory.imeis, ...imeis];
+  inventory.imeis = [...new Set(inventory.imeis)];
+
+  inventory.qty = inventory.imeis.length;
+
+  await inventory.save();
+  return applyLowStockFlag(inventory);
+}
+
+/* ================= SERIAL TRACKING ================= */
+if (product.trackingType === "SERIAL") {
+
+  if (!Array.isArray(imeis) || imeis.length === 0) {
+    throw createHttpError(400, "Serial numbers required");
+  }
+
+  inventory.serials = [...inventory.serials, ...imeis];
+  inventory.serials = [...new Set(inventory.serials)];
+
+  inventory.qty = inventory.serials.length;
+
+  await inventory.save();
+  return applyLowStockFlag(inventory);
+}
+
+
+  /* ================= QTY TRACKING ================= */
+  const requestedQty = Number(qty);
+  if (!Number.isFinite(requestedQty) || requestedQty === 0) {
+    throw createHttpError(400, "qty must be non-zero");
+  }
+
+  inventory.qty += requestedQty;
+
+  if (inventory.qty < 0) {
     throw createHttpError(409, "Insufficient stock");
   }
 
-  return applyLowStockFlag(updated);
+  await inventory.save();
+  return applyLowStockFlag(inventory);
 };
+
 
 /* ===============================
    NORMALIZE ITEMS

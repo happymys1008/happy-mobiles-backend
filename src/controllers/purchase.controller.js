@@ -47,13 +47,15 @@ export const createPurchase = async (req, res, next) => {
     // ===============================
     // 2️⃣ ADD STOCK
     // ===============================
-    for (const item of items) {
-      await adjustInventory({
-        productId: item.productId,
-        variantId: item.variantId,
-        qty: item.qty
-      });
-    }
+for (const item of items) {
+  await adjustInventory({
+    productId: item.productId,
+    variantId: item.variantId,
+    qty: item.qty,
+    imeis: item.imeis || []   // 🔥 THIS LINE IMPORTANT
+  });
+}
+
 
     // ===============================
     // 3️⃣ RESPONSE
