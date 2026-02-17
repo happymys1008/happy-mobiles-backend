@@ -213,3 +213,26 @@ export const uploadProductImage = async (req, res, next) => {
 };
 
 
+export const getProductById = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId)
+      .populate("categoryId")
+      .populate("subCategoryId")
+      .populate("childCategoryId")
+      .populate("brandId")
+      .lean();
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error("Get product by ID failed:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+

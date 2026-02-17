@@ -5,6 +5,7 @@ import {
   getProducts,
   createProduct,
   updateProduct,
+  getProductById,   // 🔥 ADD THIS
   getVariantsByProduct,
   createVariant,
   deleteVariant,
@@ -27,6 +28,11 @@ const upload = multer({
 router.post("/image/upload", upload.single("image"), uploadProductImage);
 // Get all products
 router.get("/", getProducts);
+
+
+// 🔥 Get single product by ID
+router.get("/:productId", getProductById);
+
 
 // Create product
 router.post("/", createProduct);
