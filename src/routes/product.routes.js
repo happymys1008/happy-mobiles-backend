@@ -10,7 +10,8 @@ import {
   createVariant,
   deleteVariant,
   updateVariantPrice,
-  uploadProductImage
+  uploadProductImage,
+  updateVariant 
 } from "../controllers/product.controller.js";
 
 const router = express.Router();
@@ -49,6 +50,13 @@ router.get("/:productId/variants", getVariantsByProduct);
 
 // Create variant for a product
 router.post("/:productId/variants", createVariant);
+
+// 🔥 FULL UPDATE VARIANT (images + price)
+router.put(
+  "/variants/:variantId",
+  updateVariant
+);
+
 
 // Update variant price (🔥 SINGLE SOURCE OF TRUTH)
 router.put("/variants/:variantId/price", updateVariantPrice);

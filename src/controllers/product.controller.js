@@ -235,4 +235,51 @@ export const getProductById = async (req, res) => {
   }
 };
 
+export const updateVariant = async (req, res, next) => {
+  try {
+    const { variantId } = req.params;
+    const { mrp, sellingPrice, images } = req.body;
+
+    const variant = await Variant.findById(variantId);
+
+    if (!variant) {
+      return res.status(404).json({ message: "Variant not found" });
+    }
+
+    // ✅ PRICE UPDATE
+    if (mrp !== undefined) variant.mrp = Number(mrp);
+    if (sellingPrice !== undefined) variant.sellingPrice = Number(sellingPrice);
+
+    // ✅ IMAGE SYNC (DELETE REMOVED FROM CLOUDINARY)
+    if (Array.isArray(images)) {
+
+      const removedImages = variant.images.filter(
+        oldImg =>
+          !images.some(
+            newImg =>
+              newImg.cloudinaryPublicId === oldImg.cloudinaryPublicId
+          )
+      );
+
+      for (const img of removedImages) {
+        if (img.cloudinaryPublicId) {
+          await cloudinary.uploader.destroy(img.cloudinaryPublicId);
+        }
+      }
+
+      variant.images = images;
+    }
+
+    await variant.save();
+
+    res.json(variant);
+
+  } catch (err) {
+    console.error("UPDATE VARIANT ERROR:", err);
+    next(err);
+  }
+};
+
+
+
 

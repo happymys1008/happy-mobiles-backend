@@ -9,10 +9,11 @@ const inventorySchema = new mongoose.Schema(
       index: true
     },
 
+    // ✅ Variant optional (non-variant products ke liye null)
     variantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Variant",
-      required: true,
+      default: null,
       index: true
     },
 
@@ -52,7 +53,15 @@ const inventorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-inventorySchema.index({ productId: 1, variantId: 1 }, { unique: true });
+/*
+  ✅ UNIQUE RULE:
+  - Non-variant product → (productId + null)
+  - Variant product → (productId + variantId)
+*/
+inventorySchema.index(
+  { productId: 1, variantId: 1 },
+  { unique: true }
+);
 
 const Inventory = mongoose.model("Inventory", inventorySchema);
 

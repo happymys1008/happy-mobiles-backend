@@ -5,9 +5,8 @@ export const getVariantsByProduct = async (req, res, next) => {
   try {
     const { productId } = req.params;
 
-    const variants = await Variant.find({ productId }).sort({
-      createdAt: 1
-    });
+    const variants = await Variant.find({ productId })
+      .sort({ createdAt: 1 });
 
     res.json(variants);
   } catch (err) {
@@ -15,30 +14,46 @@ export const getVariantsByProduct = async (req, res, next) => {
   }
 };
 
+
 /* ================= UPDATE VARIANT ================= */
 export const updateVariant = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { mrp, sellingPrice, defaultImage } = req.body;
+    const { variantId } = req.params;
+    const { mrp, sellingPrice, images, attributes } = req.body;
 
-    const variant = await Variant.findByIdAndUpdate(
-      id,
-      {
-        ...(mrp !== undefined && { mrp: Number(mrp) }),
-        ...(sellingPrice !== undefined && {
-          sellingPrice: Number(sellingPrice)
-        }),
-        ...(defaultImage !== undefined && { defaultImage })
-      },
-      { new: true }
+    const updateData = {};
+
+    if (mrp !== undefined) {
+      updateData.mrp = Number(mrp);
+    }
+
+    if (sellingPrice !== undefined) {
+      updateData.sellingPrice = Number(sellingPrice);
+    }
+
+    if (attributes && typeof attributes === "object") {
+      updateData.attributes = attributes;
+    }
+
+    if (Array.isArray(images)) {
+      updateData.images = images;
+    }
+
+    const updated = await Variant.findByIdAndUpdate(
+      variantId,
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
 
-    if (!variant) {
+    if (!updated) {
       return res.status(404).json({ message: "Variant not found" });
     }
 
-    res.json(variant);
+    res.json(updated);
+
   } catch (err) {
-    next(err);
+    console.error("UPDATE VARIANT ERROR:", err);
+    return res.status(500).json({ message: err.message });
   }
 };
+

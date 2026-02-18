@@ -24,15 +24,29 @@ const variantSchema = new mongoose.Schema(
       required: true
     },
 
-    defaultImage: {
-      type: String,
-      default: null
-    }
+    // 🔥 MULTIPLE IMAGES PER VARIANT
+    images: [
+      {
+        imageUrl: {
+          type: String,
+          required: true
+        },
+        cloudinaryPublicId: {
+          type: String,
+          required: true
+        }
+      }
+    ]
+
   },
   { timestamps: true }
 );
 
-variantSchema.index({ productId: 1, attributes: 1 }, { unique: true });
+// 🔥 Prevent duplicate attribute combinations
+variantSchema.index(
+  { productId: 1, attributes: 1 },
+  { unique: true }
+);
 
 const Variant = mongoose.model("Variant", variantSchema);
 
