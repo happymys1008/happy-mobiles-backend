@@ -33,7 +33,12 @@ export const listLowStockInventory = async () => {
 /* ===============================
    RESERVE INVENTORY (SALE)
 ================================ */
-export const reserveInventory = async ({ productId, variantId, qty }) => {
+export const reserveInventory = async ({
+  productId,
+  colorId = null,
+  skuId = null,
+  qty
+}) => {
   if (!productId) {
     throw createHttpError(400, "productId is required");
   }
@@ -48,13 +53,14 @@ export const reserveInventory = async ({ productId, variantId, qty }) => {
     throw createHttpError(404, "Invalid product");
   }
 
-  if (product.allowVariants && !variantId) {
-    throw createHttpError(400, "variantId is required for this product");
+  if (product.hasVariants && !skuId) {
+    throw createHttpError(400, "skuId is required for this product");
   }
 
   const query = {
     productId,
-    variantId: product.allowVariants ? variantId : null,
+    colorId: product.hasVariants ? colorId : null,
+    skuId: product.hasVariants ? skuId : null,
     qty: { $gte: requestedQty }
   };
 
@@ -72,16 +78,15 @@ export const reserveInventory = async ({ productId, variantId, qty }) => {
 };
 
 /* ===============================
-   ADJUST INVENTORY (PURCHASE / MANUAL)
-================================ */
-/* ===============================
-   ADJUST INVENTORY (PURCHASE / MANUAL)
+   ADJUST INVENTORY (PURCHASE)
 ================================ */
 export const adjustInventory = async ({
   productId,
-  variantId,
+  colorId = null,
+  skuId = null,
   qty,
-  imeis = []
+  imeis = [],
+  serials = []
 }) => {
   if (!productId) {
     throw createHttpError(400, "productId is required");
@@ -92,61 +97,63 @@ export const adjustInventory = async ({
     throw createHttpError(404, "Invalid product");
   }
 
-  if (product.allowVariants && !variantId) {
-    throw createHttpError(400, "variantId is required for this product");
+  if (product.hasVariants && !skuId) {
+    throw createHttpError(400, "skuId is required for this product");
   }
 
   const query = {
     productId,
-    variantId: product.allowVariants ? variantId : null
+    colorId: product.hasVariants ? colorId : null,
+    skuId: product.hasVariants ? skuId : null
   };
 
-  let inventory = await Inventory.findOne(query);
+  /* ================= IMEI TRACKING ================= */
+  if (product.trackingType === "IMEI") {
+    if (!Array.isArray(imeis) || imeis.length === 0) {
+      throw createHttpError(400, "IMEI numbers required");
+    }
 
-  if (!inventory) {
-    inventory = await Inventory.create({
-      productId,
-      variantId: product.allowVariants ? variantId : null,
-      trackingType: product.trackingType,
-      qty: 0,
-      imeis: [],
-      serials: []
-    });
+    const updated = await Inventory.findOneAndUpdate(
+      query,
+      {
+        $addToSet: { imeis: { $each: imeis } },
+        $setOnInsert: {
+          trackingType: product.trackingType,
+          serials: []
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    updated.qty = updated.imeis.length;
+    await updated.save();
+
+    return applyLowStockFlag(updated);
   }
 
-  /* ================= IMEI / SERIAL TRACKING ================= */
-/* ================= IMEI TRACKING ================= */
-if (product.trackingType === "IMEI") {
+  /* ================= SERIAL TRACKING ================= */
+  if (product.trackingType === "SERIAL") {
+    if (!Array.isArray(serials) || serials.length === 0) {
+      throw createHttpError(400, "Serial numbers required");
+    }
 
-  if (!Array.isArray(imeis) || imeis.length === 0) {
-    throw createHttpError(400, "IMEI numbers required");
+    const updated = await Inventory.findOneAndUpdate(
+      query,
+      {
+        $addToSet: { serials: { $each: serials } },
+        $setOnInsert: {
+          trackingType: product.trackingType,
+          imeis: []
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    updated.qty = updated.serials.length;
+    await updated.save();
+
+    return applyLowStockFlag(updated);
   }
-
-  inventory.imeis = [...inventory.imeis, ...imeis];
-  inventory.imeis = [...new Set(inventory.imeis)];
-
-  inventory.qty = inventory.imeis.length;
-
-  await inventory.save();
-  return applyLowStockFlag(inventory);
-}
-
-/* ================= SERIAL TRACKING ================= */
-if (product.trackingType === "SERIAL") {
-
-  if (!Array.isArray(imeis) || imeis.length === 0) {
-    throw createHttpError(400, "Serial numbers required");
-  }
-
-  inventory.serials = [...inventory.serials, ...imeis];
-  inventory.serials = [...new Set(inventory.serials)];
-
-  inventory.qty = inventory.serials.length;
-
-  await inventory.save();
-  return applyLowStockFlag(inventory);
-}
-
 
   /* ================= QTY TRACKING ================= */
   const requestedQty = Number(qty);
@@ -154,60 +161,53 @@ if (product.trackingType === "SERIAL") {
     throw createHttpError(400, "qty must be non-zero");
   }
 
-  inventory.qty += requestedQty;
+  const updated = await Inventory.findOneAndUpdate(
+    query,
+    {
+      $inc: { qty: requestedQty },
+      $setOnInsert: {
+        trackingType: product.trackingType,
+        imeis: [],
+        serials: []
+      }
+    },
+    { new: true, upsert: true }
+  );
 
-  if (inventory.qty < 0) {
+  if (updated.qty < 0) {
     throw createHttpError(409, "Insufficient stock");
   }
 
-  await inventory.save();
-  return applyLowStockFlag(inventory);
+  return applyLowStockFlag(updated);
 };
-
-
-/* ===============================
-   NORMALIZE ITEMS
-================================ */
-const normalizeItems = (items) =>
-  items
-    .map((item) => ({
-      productId: item.productId,
-      variantId: item.variantId ?? null,
-      qty: Number(item.qty)
-    }))
-    .filter(
-      (item) =>
-        item.productId &&
-        Number.isFinite(item.qty) &&
-        item.qty > 0
-    );
 
 /* ===============================
    COMMIT INVENTORY (ORDER FINALIZE)
 ================================ */
 export const commitInventory = async ({ items }) => {
-  const normalized = normalizeItems(items || []);
-  if (normalized.length === 0) {
+  if (!Array.isArray(items) || items.length === 0) {
     throw createHttpError(400, "items are required");
   }
 
   const session = await mongoose.startSession();
   try {
     let updatedDocs = [];
+
     await session.withTransaction(async () => {
-      for (const item of normalized) {
+      for (const item of items) {
         const product = await Product.findById(item.productId).lean();
         if (!product) {
           throw createHttpError(404, "Invalid product");
         }
 
-        if (product.allowVariants && !item.variantId) {
-          throw createHttpError(400, "variantId is required for this product");
+        if (product.hasVariants && !item.skuId) {
+          throw createHttpError(400, "skuId required");
         }
 
         const query = {
           productId: item.productId,
-          variantId: product.allowVariants ? item.variantId : null,
+          colorId: product.hasVariants ? item.colorId : null,
+          skuId: product.hasVariants ? item.skuId : null,
           qty: { $gte: item.qty }
         };
 
@@ -226,61 +226,7 @@ export const commitInventory = async ({ items }) => {
     });
 
     return updatedDocs;
-  } catch (err) {
-    const msg = String(err?.message || "");
-    const isTxnUnsupported =
-      msg.includes("Transaction") ||
-      msg.includes("replica set") ||
-      msg.includes("retryable writes are not supported");
-
-    if (!isTxnUnsupported) {
-      throw err;
-    }
   } finally {
     session.endSession();
-  }
-
-  // 🔁 fallback (no transaction support)
-  const decremented = [];
-  try {
-    for (const item of normalized) {
-      const product = await Product.findById(item.productId).lean();
-      if (!product) {
-        throw createHttpError(404, "Invalid product");
-      }
-
-      const query = {
-        productId: item.productId,
-        variantId: product.allowVariants ? item.variantId : null,
-        qty: { $gte: item.qty }
-      };
-
-      const updated = await Inventory.findOneAndUpdate(
-        query,
-        { $inc: { qty: -item.qty } },
-        { new: true }
-      );
-
-      if (!updated) {
-        throw createHttpError(409, "Insufficient stock");
-      }
-
-      decremented.push({ item, updated: await applyLowStockFlag(updated) });
-    }
-
-    return decremented.map((d) => d.updated);
-  } catch (err) {
-    await Promise.all(
-      decremented.map(({ item }) =>
-        Inventory.findOneAndUpdate(
-          {
-            productId: item.productId,
-            variantId: item.variantId ?? null
-          },
-          { $inc: { qty: item.qty } }
-        )
-      )
-    );
-    throw err;
   }
 };

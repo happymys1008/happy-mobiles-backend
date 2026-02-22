@@ -13,6 +13,9 @@ import {
 ===================================================== */
 export const createOrderController = async (req, res, next) => {
   try {
+    console.log("==== ORDER REQUEST BODY ====");
+    console.log(JSON.stringify(req.body, null, 2));
+
     const order = await createOrder({
       ...req.body,
       user: req.user._id,
@@ -21,9 +24,13 @@ export const createOrderController = async (req, res, next) => {
     res.json({ order });
 
   } catch (err) {
+    console.log("==== ORDER ERROR ====");
+    console.log(err);
     next(err);
   }
 };
+
+
 
 /* =====================================================
    💳 CREATE RAZORPAY ORDER (Payment Page)

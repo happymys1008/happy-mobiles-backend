@@ -15,14 +15,6 @@ const cartItemSchema = new mongoose.Schema(
       default: null,
     },
 
-    name: String,
-
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
     quantity: {
       type: Number,
       required: true,
@@ -41,7 +33,7 @@ const cartSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true, // ⭐ one cart per user
+      unique: true,
     },
 
     items: {

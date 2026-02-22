@@ -1,7 +1,13 @@
-import Variant from "../models/Variant.model.js";
-import Inventory from "../models/Inventory.model.js";
 import Product from "../models/Product.model.js";
-import { listProducts, createProductWithDefaultVariant } from "../services/product.service.js";
+import SKU from "../models/SKU.model.js";
+import ProductColor from "../models/ProductColor.model.js";
+import Inventory from "../models/Inventory.model.js";
+import {
+  listProducts,
+  createProduct as createProductService
+} from "../services/product.service.js";
+
+import cloudinary from "../config/cloudinary.js";
 
 /* ================= PRODUCTS ================= */
 
@@ -18,6 +24,7 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
+/* ================= CREATE PRODUCT ================= */
 
 /* ================= CREATE PRODUCT ================= */
 
@@ -25,144 +32,37 @@ export const createProduct = async (req, res, next) => {
   try {
     const payload = { ...req.body };
 
-    // ✅ VARIANT FLAG NORMALIZATION
-    if (typeof payload.allowVariants !== "boolean") {
-      payload.allowVariants = Boolean(payload.enableVariants);
+    const product = await createProductService(payload);
+
+    // 🔥 AUTO CREATE DEFAULT SKU ONLY FOR NON-VARIANT PRODUCT
+    if (!product.hasVariants) {
+await SKU.create({
+  productId: product._id,
+  colorId: null,
+  attributes: {},
+  mrp: payload.mrp || 0,
+  sellingPrice: payload.sellingPrice || 0,
+  skuCode: `${product.slug}-STD`
+});
     }
 
-    // ✅ PRICE FIELD NORMALIZATION (IMPORTANT FIX)
-    if (payload.price != null && payload.sellingPrice == null) {
-      payload.sellingPrice = payload.price;
-      delete payload.price;
-    }
-
-    // 🔒 PRICE RULE
-    if (payload.allowVariants) {
-      delete payload.mrp;
-      delete payload.sellingPrice;
-    } else {
-      if (payload.mrp == null || payload.sellingPrice == null) {
-        return res.status(400).json({
-          message: "MRP and Selling Price required for non-variant product"
-        });
-      }
-
-      if (Number(payload.sellingPrice) > Number(payload.mrp)) {
-        return res.status(400).json({
-          message: "Selling price cannot be greater than MRP"
-        });
-      }
-    }
-
-    const product = await createProductWithDefaultVariant(payload);
-    res.status(201).json(product);
-  } catch (err) {
-    next(err);
-  }
-};
-
-/* ================= VARIANTS ================= */
-
-export const getVariantsByProduct = async (req, res, next) => {
-  try {
-    const { productId } = req.params;
-    const variants = await Variant.find({ productId });
-    res.json(variants);
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const createVariant = async (req, res, next) => {
-  try {
-    const { productId } = req.params;
-    const { attributes, mrp, sellingPrice, defaultImage } = req.body;
-
-    const variant = await Variant.create({
-      productId,
-      attributes,
-      mrp,
-      sellingPrice,
-      defaultImage
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      data: product
     });
 
-    const product = await Product.findById(productId);
-
-    await Inventory.create({
-      productId,
-      variantId: variant._id,
-      trackingType: product.trackingType,
-      qty: 0,
-      imeis: [],
-      serials: []
-    });
-
-    res.status(201).json(variant);
   } catch (err) {
     next(err);
   }
 };
-
-export const updateVariantPrice = async (req, res, next) => {
-  try {
-    const { variantId } = req.params;
-    const { mrp, sellingPrice } = req.body;
-
-    const variant = await Variant.findByIdAndUpdate(
-      variantId,
-      {
-        mrp: Number(mrp),
-        sellingPrice: Number(sellingPrice)
-      },
-      { new: true }
-    );
-
-    if (!variant) {
-      return res.status(404).json({ message: "Variant not found" });
-    }
-
-    res.json(variant);
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const deleteVariant = async (req, res, next) => {
-  try {
-    const { variantId } = req.params;
-
-    await Variant.findByIdAndDelete(variantId);
-    await Inventory.deleteOne({ variantId });
-
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-};
-
 
 /* ================= UPDATE PRODUCT ================= */
+
 export const updateProduct = async (req, res, next) => {
   try {
     const { productId } = req.params;
     const payload = { ...req.body };
-
-    // 🔒 PRICE RULE (NON-VARIANT ONLY)
-    if (!payload.allowVariants) {
-      if (
-        payload.mrp != null &&
-        payload.sellingPrice != null &&
-        Number(payload.sellingPrice) > Number(payload.mrp)
-      ) {
-        return res.status(400).json({
-          message: "Selling price cannot be greater than MRP"
-        });
-      }
-    } else {
-      // variant product → price yahan save hi nahi hoga
-      delete payload.mrp;
-      delete payload.sellingPrice;
-    }
 
     const updatedProduct = await Product.findByIdAndUpdate(
       productId,
@@ -180,10 +80,14 @@ export const updateProduct = async (req, res, next) => {
   }
 };
 
-
-import cloudinary from "../config/cloudinary.js";
-
 /* ================= UPLOAD PRODUCT IMAGE ================= */
+/*
+  ⚠️ NOTE:
+  Product-level images should ideally be removed.
+  Colors should manage images.
+  Keep this only if admin UI still depends on it temporarily.
+*/
+
 export const uploadProductImage = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -212,11 +116,13 @@ export const uploadProductImage = async (req, res, next) => {
   }
 };
 
+/* ================= GET PRODUCT BY ID (SKU AWARE) ================= */
 
 export const getProductById = async (req, res) => {
   try {
     const { productId } = req.params;
 
+    // 1️⃣ Product metadata
     const product = await Product.findById(productId)
       .populate("categoryId")
       .populate("subCategoryId")
@@ -228,58 +134,61 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.json(product);
+    // 2️⃣ Fetch Colors
+    const colors = await ProductColor.find({ productId }).lean();
+
+    // 3️⃣ Fetch SKUs
+    const skus = await SKU.find({ productId }).lean();
+
+    // 4️⃣ Fetch Inventory
+    const inventoryDocs = await Inventory.find({ productId }).lean();
+
+// 🔹 Inventory map
+const stockBySku = {};
+for (const inv of inventoryDocs) {
+  if (inv.skuId) {
+    stockBySku[String(inv.skuId)] = Number(inv.qty || 0);
+  }
+}
+
+// 🔹 Group SKUs by color
+const skusByColor = {};
+for (const sku of skus) {
+  const key = String(sku.colorId);
+  if (!skusByColor[key]) skusByColor[key] = [];
+  skusByColor[key].push(sku);
+}
+
+// 🔹 Attach SKUs under color
+const colorsWithSkus = colors.map(color => {
+const colorSkus = (skusByColor[String(color._id)] || []).map(sku => {
+  const stockQty = stockBySku[String(sku._id)] || 0;
+
+  return {
+    _id: sku._id,
+    attributes: sku.attributes || {},
+    price: sku.sellingPrice,
+    mrp: sku.mrp,
+    stockQty,
+    inStock: stockQty > 0
+  };
+});
+
+  return {
+    _id: color._id,
+    colorName: color.colorName,
+    images: color.images || [],
+    skus: colorSkus
+  };
+});
+
+    res.json({
+      ...product,
+      colors: colorsWithSkus
+    });
+
   } catch (error) {
     console.error("Get product by ID failed:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
-
-export const updateVariant = async (req, res, next) => {
-  try {
-    const { variantId } = req.params;
-    const { mrp, sellingPrice, images } = req.body;
-
-    const variant = await Variant.findById(variantId);
-
-    if (!variant) {
-      return res.status(404).json({ message: "Variant not found" });
-    }
-
-    // ✅ PRICE UPDATE
-    if (mrp !== undefined) variant.mrp = Number(mrp);
-    if (sellingPrice !== undefined) variant.sellingPrice = Number(sellingPrice);
-
-    // ✅ IMAGE SYNC (DELETE REMOVED FROM CLOUDINARY)
-    if (Array.isArray(images)) {
-
-      const removedImages = variant.images.filter(
-        oldImg =>
-          !images.some(
-            newImg =>
-              newImg.cloudinaryPublicId === oldImg.cloudinaryPublicId
-          )
-      );
-
-      for (const img of removedImages) {
-        if (img.cloudinaryPublicId) {
-          await cloudinary.uploader.destroy(img.cloudinaryPublicId);
-        }
-      }
-
-      variant.images = images;
-    }
-
-    await variant.save();
-
-    res.json(variant);
-
-  } catch (err) {
-    console.error("UPDATE VARIANT ERROR:", err);
-    next(err);
-  }
-};
-
-
-
-

@@ -124,28 +124,29 @@ export const createOrder = async (payload) => {
     grandTotal,
     paymentMode,
     paymentStatus = "PENDING",
-    customerId,
-    customerMobile,
     customerName,
     deliveryAddress,
+    user, // 🔥 coming from controller (req.user._id)
   } = payload;
 
   const normalizedItems = normalizeItems(items);
+
   if (normalizedItems.length === 0) {
     throw createHttpError(400, "Order must have at least one item");
   }
 
-  const mobile = customerMobile || customerId;
-  const user = await User.findOne({ mobile, role: "customer" });
-  if (!user) {
+  // 🔥 USE AUTH USER DIRECTLY
+  const existingUser = await User.findById(user);
+
+  if (!existingUser) {
     throw createHttpError(400, "Customer not found");
   }
 
   const order = await Order.create({
-    user: user._id,
+    user: existingUser._id,
     orderNo: buildOrderNo(),
-    customerName,
-    customerMobile: mobile,
+    customerName: customerName || existingUser.name,
+    customerMobile: existingUser.mobile,
     deliveryAddress,
     items: normalizedItems,
     totalAmount: Number(total || 0),
@@ -165,6 +166,7 @@ export const createOrder = async (payload) => {
 
   return order;
 };
+
 
 export const createRazorpayOrder = async ({ order, amount }) => {
   const razorpay = getRazorpayClient();

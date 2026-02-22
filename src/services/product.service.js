@@ -1,59 +1,124 @@
 import Product from "../models/Product.model.js";
-import Variant from "../models/Variant.model.js"; // ⬅️ TOP PE ADD
+import SKU from "../models/SKU.model.js";
+import Inventory from "../models/Inventory.model.js";
+import ProductColor from "../models/ProductColor.model.js";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 /* ================= LIST PRODUCTS ================= */
-/*
-  - Always return EXECUTED data (array)
-  - Never return mongoose Query object
-  - Admin product list depends on this
-*/
 export const listProducts = async ({ page, limit } = {}) => {
   const safeLimit = Math.min(limit || DEFAULT_LIMIT, MAX_LIMIT);
   const safePage = page || 1;
   const skip = (safePage - 1) * safeLimit;
 
-  /* ================= TOTAL COUNT ================= */
   const total = await Product.countDocuments({ isActive: true });
 
-  /* ================= PRODUCTS ================= */
-  const products = await Product.find({ isActive: true })
-    .sort({ createdAt: -1 }) // 🔥 NEWEST FIRST
+  const baseProducts = await Product.find({ isActive: true })
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(safeLimit)
     .lean();
 
-  /* ================= VARIANT IDS ================= */
-  const productIds = products
-    .filter(p => p.allowVariants)
-    .map(p => p._id);
+  const productIds = baseProducts.map(p => p._id);
 
-  /* ================= VARIANTS ================= */
-  const variants = productIds.length
-    ? await Variant.find({ productId: { $in: productIds } }).lean()
-    : [];
+  /* ================= FETCH SKUS ================= */
+  const skus = await SKU.find({
+    productId: { $in: productIds }
+  }).lean();
 
-  /* ================= GROUP VARIANTS ================= */
-  const variantMap = {};
-  for (const v of variants) {
-    const key = String(v.productId);
-    if (!variantMap[key]) variantMap[key] = [];
-    variantMap[key].push(v);
+/* ================= FETCH COLORS ================= */
+const colors = await ProductColor.find({
+  productId: { $in: productIds }
+}).lean();
+
+  /* ================= FETCH INVENTORY ================= */
+  const inventoryDocs = await Inventory.find({
+    productId: { $in: productIds }
+  }).lean();
+
+  const stockBySku = {};
+  for (const inv of inventoryDocs) {
+    if (inv.skuId) {
+      stockBySku[String(inv.skuId)] = Number(inv.qty || 0);
+    }
   }
 
-  /* ================= ATTACH VARIANTS ================= */
-  const enrichedProducts = products.map(p => ({
-    ...p,
-    variants: variantMap[String(p._id)] || []
-  }));
+  /* ================= BUILD FINAL PRODUCTS ================= */
+  const products = baseProducts.map(product => {
+    const productSkus = skus.filter(
+      s => String(s.productId) === String(product._id)
+    );
 
-  /* ================= RETURN PAGINATION OBJECT ================= */
+const enriched = productSkus.map(sku => {
+  const stockQty = stockBySku[String(sku._id)] || 0;
+
+  // 🔥 Convert Map to normal object
+  const attrObject =
+    sku.attributes instanceof Map
+      ? Object.fromEntries(sku.attributes)
+      : sku.attributes || {};
+
+  return {
+    skuId: sku._id,
+    price: sku.sellingPrice,
+    mrp: sku.mrp,
+    colorId: sku.colorId || null,
+    inStock: stockQty > 0,
+    attributes: attrObject   // 🔥 THIS IS THE FIX
+  };
+});
+
+    const inStockSkus = enriched.filter(s => s.inStock);
+    const target = inStockSkus.length ? inStockSkus : enriched;
+
+    let displayPrice = null;
+    let displayMrp = null;
+    let stockState = "COMING";
+
+    if (target.length) {
+      const sorted = [...target].sort(
+        (a, b) => (a.price || 0) - (b.price || 0)
+      );
+
+      displayPrice = sorted[0].price ?? null;
+      displayMrp = sorted[0].mrp ?? null;
+      stockState = inStockSkus.length ? "AVAILABLE" : "OUT";
+    }
+
+const productColors = colors.filter(
+  c => String(c.productId) === String(product._id)
+);
+
+let thumbnail = null;
+
+if (productColors.length) {
+  const firstColorWithImage = productColors.find(
+    c => c.images && c.images.length
+  );
+
+  if (firstColorWithImage) {
+    thumbnail = firstColorWithImage.images[0];
+  }
+}
+
+return {
+  ...product,
+  skus: enriched,   // 🔥 IMPORTANT
+  displayPrice,
+  mrp:
+    displayMrp && displayMrp > displayPrice
+      ? displayMrp
+      : displayPrice,
+  stockState,
+  thumbnail
+};
+  });
+
   const totalPages = Math.ceil(total / safeLimit);
 
   return {
-    data: enrichedProducts,
+    data: products,
     page: safePage,
     limit: safeLimit,
     total,
@@ -61,33 +126,26 @@ export const listProducts = async ({ page, limit } = {}) => {
   };
 };
 
-
-
 /* ================= CREATE PRODUCT ================= */
 /*
-  RULES (FINAL):
-  - Admin decides allowVariants
-  - Product create = catalog only
-  - ❌ NO inventory on product create
-  - ❌ NO variant on product create
-  - ✅ Inventory comes ONLY from PURCHASE
-  - ✅ Variants added later by Admin
+  NEW ARCHITECTURE:
+  - Product metadata create hoga
+  - hasVariants = false → auto default SKU
+  - Inventory always SKU-based
 */
-export const createProductWithDefaultVariant = async (data) => {
-  const {
-    name,
-    slug,
-    categoryId,
-    subCategoryId,
-    childCategoryId,
-    brandId,
-    trackingType,
-    allowVariants,
-    mrp,
-    sellingPrice
-  } = data;
+export const createProduct = async (data) => {
+const {
+  name,
+  slug,
+  categoryId,
+  subCategoryId,
+  childCategoryId,
+  brandId,
+  trackingType,
+  hasVariants,
+  variantConfig = []
+} = data;
 
-  /* 🔒 EMPTY STRING → NULL (Mongo ObjectId safety) */
   const cleanSubCategoryId =
     subCategoryId && subCategoryId !== "" ? subCategoryId : null;
 
@@ -97,24 +155,51 @@ export const createProductWithDefaultVariant = async (data) => {
   const cleanBrandId =
     brandId && brandId !== "" ? brandId : null;
 
-  /* ================= CREATE PRODUCT ================= */
-  const product = await Product.create({
-    name,
-    slug,
-    categoryId,
-    subCategoryId: cleanSubCategoryId,
-    childCategoryId: cleanChildCategoryId,
-    brandId: cleanBrandId,
-    trackingType,
-    allowVariants,
-    mrp: allowVariants ? null : mrp,
-    sellingPrice: allowVariants ? null : sellingPrice
-  });
+const product = await Product.create({
+  name,
+  slug,
+  categoryId,
+  subCategoryId: cleanSubCategoryId,
+  childCategoryId: cleanChildCategoryId,
+  brandId: cleanBrandId,
+  trackingType,
+  hasVariants: !!hasVariants,
+  variantConfig: hasVariants ? variantConfig : []
+});
 
-  // ❌ NO INVENTORY HERE
-  // ❌ NO VARIANT HERE
-  // ✅ Inventory will be created from PURCHASE
-  // ✅ Variants will be added later by Admin
+  /* ===============================
+     AUTO DEFAULT SKU (NON-VARIANT)
+  =============================== */
+if (!product.hasVariants) {
+  try {
+    const defaultSku = await SKU.create({
+      productId: product._id,
+      colorId: null,
+      ram: "DEFAULT",
+      storage: "DEFAULT",
+      mrp: 0,
+      sellingPrice: 0
+    });
+
+    await Inventory.findOneAndUpdate(
+      { skuId: defaultSku._id },
+      {
+        $setOnInsert: {
+          productId: product._id,
+          colorId: null,
+          trackingType: product.trackingType || "QTY",
+          qty: 0,
+          imeis: [],
+          serials: []
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+  } catch (err) {
+    console.error("🔥 AUTO SKU BLOCK ERROR:", err);
+  }
+}
 
   return product;
 };

@@ -1,4 +1,5 @@
 import Cart from "../models/Cart.model.js";
+import Product from "../models/Product.model.js";
 
 /* =====================================================
    🛒 GET CART
@@ -6,7 +7,7 @@ import Cart from "../models/Cart.model.js";
 export const getCartController = async (req, res, next) => {
   try {
     let cart = await Cart.findOne({ user: req.user._id })
-      .populate("items.product", "name images price");
+      .populate("items.product", "name images displayPrice sellingPrice price mrp");
 
     if (!cart) {
       cart = await Cart.create({
@@ -17,6 +18,7 @@ export const getCartController = async (req, res, next) => {
 
     res.json(cart);
   } catch (err) {
+    console.error(err);
     next(err);
   }
 };
@@ -26,7 +28,11 @@ export const getCartController = async (req, res, next) => {
 ===================================================== */
 export const addToCartController = async (req, res, next) => {
   try {
-    const { productId, variantId, name, price, quantity = 1 } = req.body;
+    const { productId, variantId, quantity = 1 } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ message: "Product ID required" });
+    }
 
     let cart = await Cart.findOne({ user: req.user._id });
 
@@ -35,6 +41,13 @@ export const addToCartController = async (req, res, next) => {
         user: req.user._id,
         items: [],
       });
+    }
+
+    // ✅ Verify product exists
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
     }
 
     const existing = cart.items.find(
@@ -49,16 +62,19 @@ export const addToCartController = async (req, res, next) => {
       cart.items.push({
         product: productId,
         variantId,
-        name,
-        price,
         quantity,
       });
     }
 
     await cart.save();
 
-    res.json(cart);
+    const updatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "name images price");
+
+    res.json(updatedCart);
+
   } catch (err) {
+    console.error("ADD TO CART ERROR:", err);
     next(err);
   }
 };
@@ -92,6 +108,7 @@ export const updateCartItemController = async (req, res, next) => {
 
     res.json(cart);
   } catch (err) {
+    console.error(err);
     next(err);
   }
 };
@@ -121,6 +138,7 @@ export const removeCartItemController = async (req, res, next) => {
 
     res.json(cart);
   } catch (err) {
+    console.error(err);
     next(err);
   }
 };
@@ -141,6 +159,7 @@ export const clearCartController = async (req, res, next) => {
 
     res.json(cart);
   } catch (err) {
+    console.error(err);
     next(err);
   }
 };

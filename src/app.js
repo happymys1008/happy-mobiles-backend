@@ -23,7 +23,7 @@ import brandRoutes from "./routes/brand.routes.js";
 import productAttributeRoutes from "./routes/productAttribute.routes.js";
 import purchaseRoutes from "./routes/purchase.routes.js";
 import shopRoutes from "./routes/shop.routes.js";
-import variantRoutes from "./routes/variant.routes.js";
+
 import homeSectionRoutes from "./routes/homeSection.routes.js";
 import homeBannerRoutes from "./routes/homeBanner.routes.js";
 import subCategoryRoutes from "./routes/subCategory.routes.js";
@@ -37,6 +37,8 @@ import profileSchemaRoutes from "./routes/profileSchema.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
+import productColorRoutes from "./routes/productColor.routes.js";
+import skuRoutes from "./routes/sku.routes.js";
 
 
 
@@ -107,9 +109,11 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/product-attributes", productAttributeRoutes);
-app.use("/api/variants", variantRoutes);
+
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/reviews", reviewRoutes);   // ✅ ADD THIS
+app.use("/api/product-colors", productColorRoutes);
+app.use("/api/skus", skuRoutes);
 
 
 app.use("/api/imagekit", imagekitRoutes);   // ✅ IMAGEKIT ROUTE

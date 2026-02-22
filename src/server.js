@@ -13,33 +13,7 @@ if (!process.env.MONGO_URI) {
 }
 
 /* ================= CORS FIX FOR LIVE + LOCAL ================= */
-/* ================= PROFESSIONAL CORS ================= */
 
-app.set("trust proxy", 1);
-
-const allowedOrigins = [
-  "http://localhost:3000",      // storefront local
-  "http://localhost:3001",      // admin local
-  "https://varaii.com",
-  "https://www.varaii.com",
-  "https://api.varaii.com",
-  "https://admin.varaii.com"
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS not allowed for: " + origin));
-      }
-    },
-    credentials: true
-  })
-);
-
-app.use(cookieParser());
 
 
 /* ============================================================ */

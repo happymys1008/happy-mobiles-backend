@@ -8,7 +8,7 @@ export const productCreateSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required"),
 
-    allowVariants: z.boolean(),
+    hasVariants: z.boolean(),
 
     price: z.number().nonnegative("Price must be at least 0").optional(),
     mrp: z.number().nonnegative("MRP must be at least 0").optional(),
@@ -18,7 +18,7 @@ export const productCreateSchema = z
   })
   .superRefine((data, ctx) => {
     // ❌ VARIANT PRODUCT → PRICE NOT ALLOWED
-    if (data.allowVariants === true) {
+    if (data.hasVariants === true) {
       if (data.price !== undefined || data.mrp !== undefined) {
         ctx.addIssue({
           path: ["price"],
@@ -29,7 +29,7 @@ export const productCreateSchema = z
     }
 
     // ❌ NON-VARIANT PRODUCT → PRICE REQUIRED
-    if (data.allowVariants === false) {
+    if (data.hasVariants === false) {
       if (data.price == null || data.mrp == null) {
         ctx.addIssue({
           path: ["price"],
@@ -47,7 +47,7 @@ export const productCreateSchema = z
 export const productUpdateSchema = z
   .object({
     name: z.string().trim().min(1).optional(),
-    allowVariants: z.boolean().optional(),
+    hasVariants: z.boolean().optional(),
 
     price: z.number().nonnegative().optional(),
     mrp: z.number().nonnegative().optional(),
@@ -56,7 +56,7 @@ export const productUpdateSchema = z
     isAvailable: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.allowVariants === true) {
+    if (data.hasVariants === true) {
       if (data.price !== undefined || data.mrp !== undefined) {
         ctx.addIssue({
           path: ["price"],

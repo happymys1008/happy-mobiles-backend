@@ -1,26 +1,21 @@
 import Purchase from "../models/Purchase.model.js";
-import Inventory from "../models/Inventory.model.js";
 import { adjustInventory } from "../services/inventory.service.js";
 
 /**
  * ===============================
  * CREATE PURCHASE (ADMIN)
  * ===============================
- * ✔ MongoDB single source of truth
- * ✔ Stock ADD happens here
  */
 export const createPurchase = async (req, res, next) => {
   try {
     const { invoiceNo, supplierId, invoiceDate, items } = req.body;
 
-    // 🛑 BASIC VALIDATION
     if (!supplierId || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         message: "Supplier & items are required"
       });
     }
 
-    // 🛑 ITEM LEVEL VALIDATION
     for (const item of items) {
       if (
         !item.productId ||
@@ -33,9 +28,6 @@ export const createPurchase = async (req, res, next) => {
       }
     }
 
-    // ===============================
-    // 1️⃣ SAVE PURCHASE (NO createdBy IN DEV MODE)
-    // ===============================
     const purchase = await Purchase.create({
       invoiceNo,
       supplierId,
@@ -45,25 +37,24 @@ export const createPurchase = async (req, res, next) => {
     });
 
     // ===============================
-    // 2️⃣ ADD STOCK
+    // ADD STOCK (SKU-AWARE)
     // ===============================
-for (const item of items) {
-  await adjustInventory({
-    productId: item.productId,
-    variantId: item.variantId,
-    qty: item.qty,
-    imeis: item.imeis || []   // 🔥 THIS LINE IMPORTANT
-  });
-}
+    for (const item of items) {
+      await adjustInventory({
+        productId: item.productId,
+        colorId: item.colorId || null,
+        skuId: item.skuId || null,
+        qty: item.qty,
+        imeis: item.imeis || [],
+        serials: item.serials || []
+      });
+    }
 
-
-    // ===============================
-    // 3️⃣ RESPONSE
-    // ===============================
     res.status(201).json({
       message: "Purchase saved & inventory updated",
       purchaseId: purchase._id
     });
+
   } catch (err) {
     console.error("PURCHASE CREATE ERROR:", err);
     next(err);

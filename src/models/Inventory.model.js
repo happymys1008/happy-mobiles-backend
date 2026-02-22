@@ -2,6 +2,14 @@ import mongoose from "mongoose";
 
 const inventorySchema = new mongoose.Schema(
   {
+    skuId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SKU",
+      required: true,
+      unique: true,   // 🔥 ONLY UNIQUE RULE
+      index: true
+    },
+
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
@@ -9,12 +17,10 @@ const inventorySchema = new mongoose.Schema(
       index: true
     },
 
-    // ✅ Variant optional (non-variant products ke liye null)
-    variantId: {
+    colorId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Variant",
-      default: null,
-      index: true
+      ref: "ProductColor",
+      default: null
     },
 
     trackingType: {
@@ -51,16 +57,6 @@ const inventorySchema = new mongoose.Schema(
     }
   },
   { timestamps: true }
-);
-
-/*
-  ✅ UNIQUE RULE:
-  - Non-variant product → (productId + null)
-  - Variant product → (productId + variantId)
-*/
-inventorySchema.index(
-  { productId: 1, variantId: 1 },
-  { unique: true }
 );
 
 const Inventory = mongoose.model("Inventory", inventorySchema);
